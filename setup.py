@@ -30,7 +30,7 @@ setup(
             'imagefetch = ImageFetchPy.cli:main',  
         ],
     },
-    
+    url='https://github.com/sai-3000/ImageFetchPY',
     project_urls={
         'Source': 'https://github.com/sai-3000/ImageFetchPY',
         'Tracker': 'https://github.com/sai-3000/ImageFetchPY',
