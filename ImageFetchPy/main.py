@@ -8,7 +8,7 @@ from urllib.parse import quote
 
 def initialize():
     """
-    Placeholder function for any initialization tasks.
+    Placeholdera function for any initialization tasks.
     """
     pass
 
