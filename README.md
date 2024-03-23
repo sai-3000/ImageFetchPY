@@ -16,7 +16,6 @@ You can install ImageFetchPy using pip:
 ```bash
 pip install ImageFetchPy
 
-
 Usage
 Using the Library in a Python File
 

@@ -2,13 +2,13 @@ import os
 import time
 import requests
 import urllib
-import magic  # Requires 'python-magic' library
-import progressbar  # Requires 'progressbar2' library
+import magic
+import progressbar
 from urllib.parse import quote
 
 def initialize():
     """
-    Placeholdera function for any initialization tasks.
+    Placeholder function for any initialization tasks.
     """
     pass
 
@@ -19,15 +19,13 @@ def create_image_directories(directory, name):
     :param directory: The main directory path where subdirectories will be created.
     :param name: The name of the subdirectory to be created.
     """
-    # Replace spaces in the name with underscores
     name = name.replace(" ", "_")
     try:
         if not os.path.exists(directory):
             os.makedirs(directory)
             time.sleep(0.2)
-        # Create subdirectory if it doesn't exist
-        path = name
-        sub_directory = os.path.join(directory, path)
+
+        sub_directory = os.path.join(directory, name)
         if not os.path.exists(sub_directory):
             os.makedirs(sub_directory)
     except OSError as e:
@@ -45,11 +43,77 @@ def download_page(url):
         headers = {'User-Agent': "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/77.0.3865.90 Safari/537.36"}
         req = urllib.request.Request(url, headers=headers)
         resp = urllib.request.urlopen(req)
-        respData = str(resp.read())
-        return respData
+        return resp.read().decode('utf-8')
     except Exception as e:
         print(e)
-        exit(0)
+        raise
+
+def download_image(url, directory, keyword, extensions, last_number, bar):
+    """
+    Download a single image from the provided URL and save it to the specified directory.
+
+    :param url: The URL of the image to download.
+    :param directory: The directory to save the image.
+    :param keyword: The keyword associated with the image.
+    :param extensions: Set of valid image file extensions to download.
+    :param last_number: The last number used for naming images.
+    :param bar: Progress bar to update.
+    """
+    try:
+        if not url.startswith('https://encrypted-tbn0.gstatic.com/'):
+            r = requests.get(url, allow_redirects=True, timeout=1)
+            if 'html' not in str(r.content):
+                mime = magic.Magic(mime=True)
+                file_type = mime.from_buffer(r.content)
+                file_extension = f'.{file_type.split("/")[1]}'
+                if file_extension not in extensions:
+                    raise ValueError()
+
+                # Increment image counter and check if it's greater than 3
+                file_name = f"{keyword}_{last_number + 1}{file_extension}"
+                with open(os.path.join(directory, file_name), 'wb') as file:
+                    file.write(r.content)
+                    bar.update(bar.currval + 1)
+            else:
+                raise ValueError("HTML content received instead of image.")
+    except Exception as e:
+        raise
+
+def download_images_from_html(html_content, directory, keyword, extensions, limit, last_number, bar):
+    """
+    Download images from the HTML content of a web page and save them to the specified directory.
+
+    :param html_content: The HTML content of the web page containing image links.
+    :param directory: The directory to save the images.
+    :param keyword: The keyword associated with the images.
+    :param extensions: Set of valid image file extensions to download.
+    :param limit: Maximum number of images to download.
+    :param last_number: The last number used for naming images.
+    :param bar: Progress bar to update.
+    """
+    end_object = -1
+    image_counter = 0  # Counter for downloaded images
+
+    while image_counter < limit:
+        try:
+            new_line = html_content.find('"https://', end_object + 1)
+            end_object = html_content.find('"', new_line + 1)
+
+            buffor = html_content.find('\\', new_line + 1, end_object)
+            if buffor != -1:
+                object_raw = html_content[new_line + 1:buffor]
+            else:
+                object_raw = html_content[new_line + 1:end_object]
+
+            # Check if the object link contains a valid image extension and exclude unwanted patterns
+            if any(extension in object_raw for extension in extensions) and not any(pattern in object_raw for pattern in ['ssl.gstatic.com', 'www.gstatic.com']):
+                time.sleep(1)  # Wait for 1 second before downloading the next image
+                download_image(object_raw, directory, keyword, extensions, last_number, bar)
+                image_counter += 1
+                last_number += 1
+
+        except Exception as e:
+            pass
 
 def download_query(keywords, limit, extensions={'.jpg', '.png', '.ico', '.gif', '.jpeg'}):
     """
@@ -61,85 +125,22 @@ def download_query(keywords, limit, extensions={'.jpg', '.png', '.ico', '.gif', 
     """
     keyword_to_search = [str(item).strip() for item in keywords.split(',')]
     main_directory = "images/"
-
-    # Calculate the total number of iterations needed for the progress bar
-    things = len(keyword_to_search) * limit
-
-    # Initialize progress bar
-    bar = progressbar.ProgressBar(maxval=things, \
-                                   widgets=[progressbar.Bar('*', '[', ']'), ' ', progressbar.Percentage()])
+    total_images = len(keyword_to_search) * limit
+    bar = progressbar.ProgressBar(maxval=total_images, widgets=[progressbar.Bar('*', '[', ']'), ' ', progressbar.Percentage()])
     bar.start()
 
-    i = 0
-    while i < len(keyword_to_search):
-        create_image_directories(main_directory, keyword_to_search[i])
-        url = 'https://www.google.com/search?q=' + quote(keyword_to_search[i].encode('utf-8')) + '&biw=1536&bih=674&tbm=isch&sxsrf=ACYBGNSXXpS6YmAKUiLKKBs6xWb4uUY5gA:1581168823770&source=lnms&sa=X&ved=0ahUKEwioj8jwiMLnAhW9AhAIHbXTBMMQ_AUI3QUoAQ'
-        raw_html = download_page(url)
-
-        end_object = -1
-        google_image_seen = False
-        j = 0
-        image_counter = 0  # Counter for downloaded images
+    for keyword in keyword_to_search:
+        create_image_directories(main_directory, keyword)
+        url = f'https://www.google.com/search?q={quote(keyword.encode("utf-8"))}&biw=1536&bih=674&tbm=isch&sxsrf=ACYBGNSXXpS6YmAKUiLKKBs6xWb4uUY5gA:1581168823770&source=lnms&sa=X&ved=0ahUKEwioj8jwiMLnAhW9AhAIHbXTBMMQ_AUI3QUoAQ'
+        html_content = download_page(url)
 
         # Check existing images for numbering continuation
-        existing_images = os.listdir(main_directory + keyword_to_search[i].replace(" ", "_"))
-        existing_numbers = [int(img.split("_")[-1].split(".")[0]) for img in existing_images if img.startswith(keyword_to_search[i])]
-        if existing_numbers:
-            last_number = max(existing_numbers)
-        else:
-            last_number = 0
+        existing_images = os.listdir(os.path.join(main_directory, keyword.replace(" ", "_")))
+        existing_numbers = [int(img.split("_")[-1].split(".")[0]) for img in existing_images if img.startswith(keyword)]
+        last_number = max(existing_numbers) if existing_numbers else 0
 
-        while j < limit + 3:  # Allow for some extra iterations to handle exceptions
-            while True:
-                try:
-                    new_line = raw_html.find('"https://', end_object + 1)
-                    end_object = raw_html.find('"', new_line + 1)
-
-                    buffor = raw_html.find('\\', new_line + 1, end_object)
-                    if buffor != -1:
-                        object_raw = (raw_html[new_line + 1:buffor])
-                    else:
-                        object_raw = (raw_html[new_line + 1:end_object])
-
-                    # Check if the object link contains a valid image extension
-                    if any(extension in object_raw for extension in extensions):
-                        break
-
-                except Exception as e:
-                    break
-
-            path = main_directory + keyword_to_search[i].replace(" ", "_")
-
-            try:
-                r = requests.get(object_raw, allow_redirects=True, timeout=1)
-                if ('html' not in str(r.content)):
-                    mime = magic.Magic(mime=True)
-                    file_type = mime.from_buffer(r.content)
-                    file_extension = f'.{file_type.split("/")[1]}'
-                    if file_extension not in extensions:
-                        raise ValueError()
-
-                    if file_extension == '.png' and not google_image_seen:
-                        google_image_seen = True
-                        raise ValueError()
-
-                    # Increment image counter and check if it's greater than 3
-                    image_counter += 1
-                    if image_counter > 3:
-                        file_name = f"{keyword_to_search[i]}_{last_number + j + 1 - 3}{file_extension}"
-                        with open(os.path.join(path, file_name), 'wb') as file:
-                            file.write(r.content)
-                        bar.update(bar.currval + 1)
-
-                else:
-                    j -= 1  # Retry downloading if encounter HTML content
-            except Exception as e:
-                j -= 1  # Retry downloading on exception
-            j += 1
-
-        i += 1
+        download_images_from_html(html_content, os.path.join(main_directory, keyword.replace(" ", "_")), keyword, extensions, limit, last_number, bar)
 
     bar.finish()
     print("Downloading Complete")
-
 
