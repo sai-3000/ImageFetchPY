@@ -9,6 +9,14 @@ ImageFetchPy is a Python library for scraping and downloading images from the we
 - Supports various image file extensions like jpg, png, gif, etc.
 - Includes a command-line interface (CLI) for easy usage.
 
+
+## Version 1.2
+Version 1.2 includes modifications:
+- Includes modifications so that it does not downloads images of icons, navbar etc.
+- Now saves image url in a text file inside a folder 'url' present inside the folder    which contains images based on the given query name
+
+
+
 ## Installation
 
 You can install ImageFetchPy using pip:
