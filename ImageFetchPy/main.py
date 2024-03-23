@@ -1,3 +1,13 @@
+"""
+Version 1.2 of ImageFetchPy
+--Includes modifications so that it does not downloads images of icons, navbar etc.
+
+Author - Sai Smaran Panda
+
+"""
+
+
+
 import os
 import time
 import requests
