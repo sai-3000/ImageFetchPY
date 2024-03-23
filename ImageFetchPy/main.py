@@ -1,3 +1,11 @@
+"""
+Version 1.0.2 of ImageFetchPy
+--Sometimes may download images of icons, navbar etc. V1.2 have changes so that it will not download these. 
+
+Author - Sai Smaran Panda
+
+"""
+
 import os
 import time
 import requests
@@ -8,7 +16,7 @@ from urllib.parse import quote
 
 def initialize():
     """
-    Placeholdera function for any initialization tasks.
+    Placeholder function for any initialization tasks.
     """
     pass
 
