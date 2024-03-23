@@ -1,12 +1,38 @@
 """
-Version 1.2 of ImageFetchPy
---Includes modifications so that it does not downloads images of icons, navbar etc.
---Now saves image url in a text file inside a folder 'url' present inside the folder    which contains images based on the given query name
+ImageFetchPy
 
-Author - Sai Smaran Panda
+ImageFetchPy is a Python library designed to simplify the process of scraping and downloading images from the web, specifically targeting Google Image Search based on user-provided keywords.
 
+Author: Sai Smaran Panda
+
+Version 1.2:
+- Avoids downloading images of icons, navbar, etc.
+- Saves image URLs in a text file inside a 'url' folder within the image directory based on the query name.
+- Skips downloading duplicate images based on URL comparison.
+
+Usage:
+1. Initialize the library using the `initialize()` function (optional).
+
+2. Use the `download_query` function to download images:
+   - Provide keywords as a string (comma-separated if multiple keywords).
+   - Specify the limit on the number of images to download per keyword.
+   - Optionally, specify valid image file extensions to download (default includes .jpg, .png, .ico, .gif, .jpeg).
+
+Functions:
+- `initialize()`: Placeholder function for any initialization tasks.
+- `download_query(keywords, limit, extensions)`: Downloads images based on keywords and limits.
+  - `keywords`: Keywords to search for images.
+  - `limit`: Maximum number of images to download per keyword.
+  - `extensions`: Set of valid image file extensions to download (default includes common image formats).
+
+Internal Functions:
+- `create_image_directories(directory, name)`: Creates directories to save images.
+- `download_page(url)`: Downloads HTML content from a URL.
+- `download_image(url, directory, keyword, extensions, last_number, bar)`: Downloads a single image.
+- `download_images_from_html(html_content, directory, keyword, extensions, limit, last_number, bar)`: Downloads images from HTML content.
+- `create_url_directory(directory, name)`: Creates a directory to save URL text files.
+- `write_urls_to_file(directory, keyword, url)`: Writes URL to a text file.
 """
-
 
 
 import os
@@ -126,38 +152,8 @@ def download_images_from_html(html_content, directory, keyword, extensions, limi
         except Exception as e:
             pass
 
-'''def download_query(keywords, limit, extensions={'.jpg', '.png', '.ico', '.gif', '.jpeg'}):
-    """
-    Download images based on user-provided keywords and limits.
-
-    :param keywords: Keywords to search for images (comma-separated if multiple).
-    :param limit: Maximum number of images to download per keyword.
-    :param extensions: Set of valid image file extensions to download.
-    """
-    keyword_to_search = [str(item).strip() for item in keywords.split(',')]
-    main_directory = "images/"
-    total_images = len(keyword_to_search) * limit
-    bar = progressbar.ProgressBar(maxval=total_images, widgets=[progressbar.Bar('*', '[', ']'), ' ', progressbar.Percentage()])
-    bar.start()
-
-    for keyword in keyword_to_search:
-        create_image_directories(main_directory, keyword)
-        url = f'https://www.google.com/search?q={quote(keyword.encode("utf-8"))}&biw=1536&bih=674&tbm=isch&sxsrf=ACYBGNSXXpS6YmAKUiLKKBs6xWb4uUY5gA:1581168823770&source=lnms&sa=X&ved=0ahUKEwioj8jwiMLnAhW9AhAIHbXTBMMQ_AUI3QUoAQ'
-        html_content = download_page(url)
-
-        # Check existing images for numbering continuation
-        existing_images = os.listdir(os.path.join(main_directory, keyword.replace(" ", "_")))
-        existing_numbers = [int(img.split("_")[-1].split(".")[0]) for img in existing_images if img.startswith(keyword)]
-        last_number = max(existing_numbers) if existing_numbers else 0
-
-        download_images_from_html(html_content, os.path.join(main_directory, keyword.replace(" ", "_")), keyword, extensions, limit, last_number, bar)
-
-    bar.finish()
-    print("Downloading Complete")'''
 
 
-import os
-from urllib.parse import quote
 
 def create_url_directory(directory, name):
     """
@@ -193,6 +189,8 @@ def write_urls_to_file(directory, keyword, url):
         print(e)
         raise
 
+
+
 def download_query(keywords, limit, extensions={'.jpg', '.png', '.ico', '.gif', '.jpeg'}):
     """
     Download images based on user-provided keywords and limits.
@@ -214,6 +212,14 @@ def download_query(keywords, limit, extensions={'.jpg', '.png', '.ico', '.gif', 
         existing_numbers = [int(img.split("_")[-1].split(".")[0]) for img in existing_images if img.startswith(keyword)]
         last_number = max(existing_numbers) if existing_numbers else 0
 
+        # Load existing URLs from file
+        existing_urls = set()
+        url_directory = os.path.join(main_directory, keyword.replace(" ", "_"), "url")
+        url_file_path = os.path.join(url_directory, f"{keyword.replace(' ', '_')}_urls.txt")
+        if os.path.exists(url_file_path):
+            with open(url_file_path, 'r') as url_file:
+                existing_urls = {line.strip() for line in url_file}
+
         bar = progressbar.ProgressBar(maxval=limit, widgets=[progressbar.Bar('*', '[', ']'), ' ', progressbar.Percentage()])
         bar.start()
 
@@ -232,11 +238,12 @@ def download_query(keywords, limit, extensions={'.jpg', '.png', '.ico', '.gif', 
                     object_raw = html_content[new_line + 1:end_object]
 
                 if any(extension in object_raw for extension in extensions) and not any(pattern in object_raw for pattern in ['ssl.gstatic.com', 'www.gstatic.com']):
-                    time.sleep(1)
-                    download_image(object_raw, os.path.join(main_directory, keyword.replace(" ", "_")), keyword, extensions, last_number, bar)
-                    write_urls_to_file(main_directory, keyword, object_raw)
-                    image_counter += 1
-                    last_number += 1
+                    if object_raw not in existing_urls:  # Check if URL is not already downloaded
+                        time.sleep(1)
+                        download_image(object_raw, os.path.join(main_directory, keyword.replace(" ", "_")), keyword, extensions, last_number, bar)
+                        write_urls_to_file(main_directory, keyword, object_raw)
+                        image_counter += 1
+                        last_number += 1
 
             except Exception as e:
                 pass
@@ -246,5 +253,6 @@ def download_query(keywords, limit, extensions={'.jpg', '.png', '.ico', '.gif', 
     print("Downloading Complete")
 
 
-download_query("india",10)
+
+
 
